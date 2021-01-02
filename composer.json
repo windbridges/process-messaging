@@ -9,9 +9,6 @@
       "email": "windbridges@gmail.com"
     }
   ],
-  "require": {
-    "symfony/process": "5.1"
-  },
   "autoload": {
     "psr-4": {
       "WindBridges\\ProcessMessaging\\": "src/"
@@ -19,5 +16,8 @@
   },
   "require-dev": {
     "phpunit/phpunit": "9.5.x-dev"
+  },
+  "require": {
+    "symfony/process": "5.x-dev"
   }
 }
