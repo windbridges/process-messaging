@@ -7,7 +7,8 @@ use Throwable;
 class ProcessMessaging
 {
     static protected $echoHandlerInstalled = false;
-    static protected $ExceptionHandlerInstalled = false;
+    static protected $exceptionHandlerInstalled = false;
+    static protected $serializer;
 
     static function handleOutput()
     {
@@ -20,12 +21,32 @@ class ProcessMessaging
         self::sendMessage(Message::TYPE_MESSAGE, $object);
     }
 
+    static function sendException(Throwable $exception)
+    {
+        $serializableException = $exception instanceof SerializableException
+            ? $exception : new SerializableException($exception);
+        self::sendMessage(Message::TYPE_EXCEPTION, $serializableException, STDERR);
+    }
+
+    static function getSerializer(): SerializerInterface
+    {
+        if (!self::$serializer) {
+            self::$serializer = new Serializer();
+        }
+
+        return self::$serializer;
+    }
+
+    static function setSerializer(SerializerInterface $serializer)
+    {
+        self::$serializer = $serializer;
+    }
+
     static protected function sendMessage(string $type, $object, $output = STDOUT)
     {
         $message = new Message($type, $object);
-        $serialized = serialize($message);
-        $encoded = base64_encode($serialized);
-        fwrite($output, $encoded . "\n");
+        $serialized = self::getSerializer()->serialize($message);
+        fwrite($output, $serialized . "\n");
     }
 
     static protected function handleEcho()
@@ -43,12 +64,12 @@ class ProcessMessaging
 
     static protected function handleExceptions()
     {
-        if(!self::$ExceptionHandlerInstalled) {
+        if(!self::$exceptionHandlerInstalled) {
             set_exception_handler(function (Throwable $exception) {
-                self::sendMessage(Message::TYPE_EXCEPTION, $exception, STDERR);
+                self::sendException($exception);
             });
 
-            self::$ExceptionHandlerInstalled = true;
+            self::$exceptionHandlerInstalled = true;
         }
     }
 

@@ -3,6 +3,7 @@
 use WindBridges\ProcessMessaging\Message;
 use WindBridges\ProcessMessaging\Process;
 use PHPUnit\Framework\TestCase;
+use WindBridges\ProcessMessaging\SerializableException;
 
 class ProcessWithMessagingTest extends TestCase
 {
@@ -12,7 +13,7 @@ class ProcessWithMessagingTest extends TestCase
 
         $proc = new Process($cmd);
 
-        $proc->onOutput(function (string $buffer) {
+        $proc->onEcho(function (string $buffer) {
             if ($buffer == 'Echo message text') {
                 $this->addToAssertionCount(1);
             }
@@ -28,7 +29,7 @@ class ProcessWithMessagingTest extends TestCase
         $proc = new Process($cmd);
         $output = [];
 
-        $proc->onOutput(function (string $buffer) use (&$output) {
+        $proc->onEcho(function (string $buffer) use (&$output) {
             $output[] = $buffer;
         });
 
@@ -60,8 +61,8 @@ class ProcessWithMessagingTest extends TestCase
 
         $proc = new Process($cmd);
 
-        $proc->onException(function (Throwable $exception)  {
-            $this->assertEquals('Test exception', $exception->getMessage());
+        $proc->onException(function (SerializableException $exception)  {
+            $this->assertEquals('(Exception) Test exception', $exception->getMessage());
         });
 
         $proc->run();

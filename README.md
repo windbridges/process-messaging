@@ -37,7 +37,7 @@ require "vendor/autoload.php";
 
 $proc = new Process(['php', 'child.php']);
 
-$proc->onOutput(function (string $buffer) {
+$proc->onEcho(function (string $buffer) {
     // $buffer contains 'Echo message text' here 
     echo "Output from parent: $buffer\n";
 });
@@ -88,6 +88,8 @@ $proc->run();
 
 ##### Handling exceptions
 
+Exceptions are automatically wrapped into `SerializableException` class to prevent serialization of the stack trace. The trace is stored as a result of `traceAsString()` method.
+
 ```php
 // child.php
 
@@ -104,12 +106,13 @@ throw new Exception('Test exception');
 // parent.php
 
 use WindBridges\ProcessMessaging\Process;
+use WindBridges\ProcessMessaging\SerializableException;
 
 require "vendor/autoload.php";
 
 $proc = new Process(['php', 'child.php']);
 
-$proc->onException(function (Throwable $exception)  {
+$proc->onException(function (SerializableException $exception)  {
     echo $exception->getMessage();
 });
 
