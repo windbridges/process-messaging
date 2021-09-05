@@ -5,7 +5,7 @@ composer require windbridges/process-messaging
 
 ### About
 
-This package helps to communicate with child processes. Create child processes with Symfony Process (https://github.com/symfony/process) and catch message objects back instead of parsing plain output or using files/sockets/db as a mediator.
+This package helps to communicate with child processes. Child process writes serialized messages to the STDOUT using `ProcessMessaging::send()`, and parent process catches these messages using `WindBridges\ProcessMessaging\Process` which is a wrapper around Symfony Process (https://github.com/symfony/process). `ProcessMessaging` is also catches any `echo` and supports Symfony's `VarDumper` output (as well as `dump`/`dd` output). 
 
 - Catch messages from every `echo` of child process
 - Catch custom messages sent with `ProcessMessaging::send`

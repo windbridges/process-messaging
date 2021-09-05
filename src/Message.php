@@ -19,6 +19,14 @@ class Message implements Serializable
         $this->object = $object;
     }
 
+    public function export(): array
+    {
+        return [
+            'type' => $this->type,
+            'object' => $this->object,
+        ];
+    }
+
     public function serialize()
     {
         return serialize([

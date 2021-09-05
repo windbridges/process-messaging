@@ -27,7 +27,36 @@ class SerializableException extends Exception implements Serializable
         $this->file = $exception->getFile();
         $this->line = $exception->getLine();
         $this->code = $exception->getCode();
-        $this->trace = $exception->getTrace();
+
+        $trace = [];
+
+        foreach ($exception->getTrace() as $item) {
+            if ($item['args'] ?? null) {
+                if (is_object($item)) {
+                    $item['args'] = get_class($item);
+                } elseif (is_array($item)) {
+                    $item['args'] = [];
+                } else {
+                    $item['args'] = gettype($item);
+                }
+            }
+
+            $trace[] = $item;
+        }
+
+        $this->trace = $trace;
+    }
+
+    public function export(): array
+    {
+        return [
+            'class' => $this->class,
+            'message' => $this->message,
+            'file' => $this->file,
+            'line' => $this->line,
+            'code' => $this->code,
+            'trace' => $this->trace,
+        ];
     }
 
     public function getClass(): string
@@ -41,7 +70,13 @@ class SerializableException extends Exception implements Serializable
 
         foreach ($this->trace as $item) {
             if ($item['args'] ?? null) {
-                $item['args'] = is_object($item) ? get_class($item) : gettype($item);
+                if (is_object($item)) {
+                    $item['args'] = get_class($item);
+                } elseif (is_array($item)) {
+                    $item['args'] = [];
+                } else {
+                    $item['args'] = gettype($item);
+                }
             }
 
             $trace[] = $item;

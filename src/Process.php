@@ -17,7 +17,7 @@ class Process extends \Symfony\Component\Process\Process
     /** @var SerializerInterface */
     private $serializer;
 
-    public function __construct($commandline, $cwd = null, array $env = null, $input = null, $timeout = 60, array $options = [])
+    public function __construct($commandline, $cwd = null, array $env = null, $input = null, $timeout = 60)
     {
         $this->serializer = new Serializer();
         $this->onException = function (Throwable $ex) {
@@ -76,9 +76,6 @@ class Process extends \Symfony\Component\Process\Process
                             if ($msgType == Message::TYPE_ECHO && $this->onOutput) {
                                 call_user_func($this->onOutput, $message->getObject());
                             } elseif ($msgType == Message::TYPE_MESSAGE && $this->onMessage) {
-                                if ($message->getObject() instanceof EchoEvent) {
-                                    dump($message->getObject()); // ?
-                                }
                                 call_user_func($this->onMessage, $message->getObject());
                             } elseif ($msgType == Message::TYPE_EXCEPTION) {
                                 call_user_func($this->onException, $message->getObject());

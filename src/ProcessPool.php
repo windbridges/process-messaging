@@ -15,6 +15,7 @@ class ProcessPool
     protected array $activeProcesses = [];
     protected bool $isRunning = false;
     protected bool $mustStop = false;
+    protected float $polling = 0.3;
 
     public function __construct(Closure $generator = null)
     {
@@ -64,11 +65,13 @@ class ProcessPool
 
     function wait()
     {
+        $pollingMs = $this->polling * 1000000;
+
         while (true) {
             $this->tick();
 
             if ($this->isRunning()) {
-                usleep(300000);
+                usleep($pollingMs);
             } else {
                 break;
             }
