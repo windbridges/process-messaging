@@ -23,6 +23,11 @@ class Process extends \Symfony\Component\Process\Process
         $this->onException = function (Throwable $ex) {
             throw $ex;
         };
+        $this->onOutput = function (string $buffer) {
+            $label = $this->tag ?: 'Process';
+            echo "[{$label}] $buffer\n";
+        };
+
         parent::__construct($commandline, $cwd, $env, $input, $timeout);
     }
 
@@ -73,12 +78,12 @@ class Process extends \Symfony\Component\Process\Process
                         } else {
                             $msgType = $message->getType();
 
-                            if ($msgType == Message::TYPE_ECHO && $this->onOutput) {
-                                call_user_func($this->onOutput, $message->getObject());
-                            } elseif ($msgType == Message::TYPE_MESSAGE && $this->onMessage) {
-                                call_user_func($this->onMessage, $message->getObject());
+                            if ($msgType == Message::TYPE_ECHO) {
+                                $this->onOutput && call_user_func($this->onOutput, $message->getObject());
+                            } elseif ($msgType == Message::TYPE_MESSAGE) {
+                                $this->onMessage && call_user_func($this->onMessage, $message->getObject());
                             } elseif ($msgType == Message::TYPE_EXCEPTION) {
-                                call_user_func($this->onException, $message->getObject());
+                                $this->onException && call_user_func($this->onException, $message->getObject());
                             } else {
                                 throw new Exception('Process received unknown message type: ' . $msgType);
                             }
