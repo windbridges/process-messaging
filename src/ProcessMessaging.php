@@ -44,7 +44,8 @@ class ProcessMessaging
             ? $exception : new SerializableException($exception);
 
         self::sendMessage(Message::TYPE_EXCEPTION, $serializableException, STDERR);
-        // self::sendMessage(Message::TYPE_EXCEPTION, $serializableException->export(), STDERR);
+
+        exit(1);
     }
 
     static function getSerializer(): SerializerInterface

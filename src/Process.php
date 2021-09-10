@@ -3,29 +3,30 @@
 namespace WindBridges\ProcessMessaging;
 
 
+use Closure;
 use Exception;
 use Throwable;
 use Webmozart\Assert\Assert;
-use WindBridges\Parser\Event\EchoEvent;
 
 class Process extends \Symfony\Component\Process\Process
 {
-    protected $tag;
-    protected $onMessage;
-    protected $onOutput;
-    protected $onException;
-    /** @var SerializerInterface */
-    private $serializer;
+    protected string $tag;
+    protected ?Closure $onMessage;
+    protected ?Closure $onOutput;
+    protected ?Closure $onException;
+    private SerializerInterface $serializer;
 
     public function __construct($commandline, $cwd = null, array $env = null, $input = null, $timeout = 60)
     {
         $this->serializer = new Serializer();
+
         $this->onException = function (Throwable $ex) {
             throw $ex;
         };
+
         $this->onOutput = function (string $buffer) {
-            $label = $this->tag ?: 'Process';
-            echo "[{$label}] $buffer\n";
+            $label = $this->getTag() ?: 'Process';
+            echo "| {$label} | $buffer";
         };
 
         parent::__construct($commandline, $cwd, $env, $input, $timeout);
@@ -79,11 +80,11 @@ class Process extends \Symfony\Component\Process\Process
                             $msgType = $message->getType();
 
                             if ($msgType == Message::TYPE_ECHO) {
-                                $this->onOutput && call_user_func($this->onOutput, $message->getObject());
+                                $this->onOutput && $this->onOutput->call($this, $message->getObject());
                             } elseif ($msgType == Message::TYPE_MESSAGE) {
-                                $this->onMessage && call_user_func($this->onMessage, $message->getObject());
+                                $this->onMessage && $this->onMessage->call($this, $message->getObject());
                             } elseif ($msgType == Message::TYPE_EXCEPTION) {
-                                $this->onException && call_user_func($this->onException, $message->getObject());
+                                $this->onException && $this->onException->call($this, $message->getObject());
                             } else {
                                 throw new Exception('Process received unknown message type: ' . $msgType);
                             }

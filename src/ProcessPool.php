@@ -4,6 +4,7 @@ namespace WindBridges\ProcessMessaging;
 
 
 use Closure;
+use Exception;
 use Generator;
 use InvalidArgumentException;
 
@@ -16,6 +17,9 @@ class ProcessPool
     protected bool $isRunning = false;
     protected bool $mustStop = false;
     protected float $polling = 0.3;
+
+    protected ?Closure $onProcessStarted = null;
+    protected ?Closure $onProcessFinished = null;
 
     public function __construct(Closure $generator = null)
     {
@@ -34,6 +38,7 @@ class ProcessPool
 
     /**
      * Concurrency can be adjusted during runtime
+     *
      * @param int $concurrency
      */
     public function setConcurrency(int $concurrency): void
@@ -58,7 +63,7 @@ class ProcessPool
 
     function start()
     {
-        $this->iterator = $this->getGenerator()();
+        $this->iterator = null;
         $this->isRunning = true;
         $this->startInstances();
     }
@@ -107,17 +112,34 @@ class ProcessPool
     {
         $count = 0;
 
-        if($this->isRunning) {
-            // Don't use $concurrency here because it can be altered during runtime
+        if ($this->isRunning) {
+            // We don't use $concurrency here because it can be altered during runtime
             $maxId = max(array_keys($this->activeProcesses));
 
             for ($i = 0; $i <= $maxId; $i++) {
+
                 $process = $this->activeProcesses[$i] ?? null;
 
                 if ($process) {
                     if (!$process->isTerminated()) {
                         $count++;
                     } else {
+                        if ($this->onProcessFinished) {
+                            // Callback can restart process and return new one
+                            $_process = call_user_func($this->onProcessFinished, $process);
+
+                            if ($_process) {
+                                if ($_process instanceof Process && $_process->isRunning()) {
+                                    // If restarted, then update process list
+                                    $this->activeProcesses[$i] = $_process;
+                                    $count++;
+                                    continue;
+                                } else {
+                                    throw new Exception("onProcessFinished() handler must return Process instance or null");
+                                }
+                            }
+                        }
+
                         unset($this->activeProcesses[$i]);
                     }
                 }
@@ -129,36 +151,77 @@ class ProcessPool
 
     function tick()
     {
-        if($this->isRunning) {
+        if ($this->isRunning) {
             $count = $this->getProcessCount();
+            $started = $this->startInstances();
 
-            if (!$this->startInstances() && !$count) {
+            if (!$started && !$count) {
                 $this->isRunning = false;
             }
         }
     }
 
+    function onProcessStarted(Closure $handler = null)
+    {
+        $this->onProcessStarted = $handler;
+    }
+
+    /**
+     * Handler is called when process is shut down (both success and error).
+     * Status of process can be checked by $process->isSuccessful().
+     * To restart failed process use:
+     *      return $process->restart();
+     * It is important to return result of restart() from the handler, since it
+     * returns new Process object.
+     *
+     * @param Closure|null $handler function(Process $process)
+     */
+    function onProcessFinished(Closure $handler = null)
+    {
+        $this->onProcessFinished = $handler;
+    }
+
     private function startInstances(): bool
     {
-        if ($this->mustStop || !$this->iterator->valid()) {
+        if ($this->mustStop) {
             return false;
         }
 
         for ($i = 0; $i < $this->concurrency; $i++) {
-            if (!($this->activeProcesses[$i] ?? null) && $this->iterator->valid()) {
-                /** @var Process $process */
-                $process = $this->iterator->current();
-                $this->iterator->next();
+            if (!($this->activeProcesses[$i] ?? null)) {
+                $process = $this->getProcess();
 
-                if (!$process instanceof Process) {
-                    throw new InvalidArgumentException("Generator must return object of " . Process::class);
+                if ($process) {
+                    $process->start();
+                    $this->activeProcesses[$i] = $process;
+                    $this->onProcessStarted && call_user_func($this->onProcessStarted, $process);
+                } else {
+                    return false;
                 }
-
-                $process->start();
-                $this->activeProcesses[$i] = $process;
             }
         }
 
         return true;
+    }
+
+    private function getProcess(): ?Process
+    {
+        if (!$this->iterator) {
+            $this->iterator = $this->getGenerator()();
+        } else {
+            $this->iterator->next();
+        }
+
+        if ($this->iterator->valid()) {
+            $process = $this->iterator->current();
+
+            if (!$process instanceof Process) {
+                throw new InvalidArgumentException("Generator must return object of " . Process::class);
+            }
+
+            return $process;
+        } else {
+            return null;
+        }
     }
 }
